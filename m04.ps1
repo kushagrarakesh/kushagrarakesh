@@ -29,7 +29,7 @@ kubectl get pods
 code secret-provide-class-dist.yaml 
 
 # We can automate modifying all  settings in YAML through PowerShell
-$SPC = Get-Content "C:\AKS with AKV\04\demos\m04\m04.ps1\secret-provide-class-dist.yaml" | ConvertFrom-YAML
+$SPC = Get-Content "C:\AKS with AKV\secret-provide-class-dist.yaml" | ConvertFrom-YAML
 $SPC.spec.parameters.keyvaultName=$KVName
 $SPC.spec.parameters.resourceGroup=$RG
 $SPC.spec.parameters.subscriptionId=$Sub
@@ -74,7 +74,7 @@ kubectl describe pod nginx-secrets-store
 # We can see the Secret in the Pod
 kubectl exec -it nginx-secrets-store -- ls -l /mnt/secrets-store/
 
-kubectl exec -it nginx-secrets-store -- bash -c "cat /mnt/secrets-store/sapassword"
+kubectl exec -it nginx-secrets-store -- bash -c "cat /mnt/secrets-store/"
 
 # What if we upgrade the key?
 # Currently, AKS and AKV are in sync
