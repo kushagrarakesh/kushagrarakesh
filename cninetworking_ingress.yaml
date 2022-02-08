@@ -5,24 +5,31 @@ Network address translation (NAT) is then configured on the nodes, and pods rece
 This approach reduces the number of IP addresses that you need to reserve in your network space for pods to use.
 With Azure Container Networking Interface (CNI), every pod gets an IP address from the subnet and can be accessed directly. 
 These IP addresses must be unique across your network space, and must be planned in advance. 
-Each node has a configuration parameter for the maximum number of pods that it supports. The equivalent number of IP addresses per node are then reserved up front for that node. This approach requires more planning, and often leads to IP address exhaustion or the need to rebuild clusters in a larger subnet as your application demands grow.
+Each node has a configuration parameter for the maximum number of pods that it supports. 
+The equivalent number of IP addresses per node are then reserved up front for that node. 
+This approach requires more planning, and often leads to IP address exhaustion or the need to rebuild clusters in a larger subnet as 
+your application demands grow.
 
-This article shows you how to use Azure CNI networking to create and use a virtual network subnet for an AKS cluster. For more information on network options and considerations, see Network concepts for Kubernetes and AKS.
+This article shows you how to use Azure CNI networking to create and use a virtual network subnet for an AKS cluster. 
+For more information on network options and considerations, see Network concepts for Kubernetes and AKS.
 
 
-
-An ingress controller is a piece of software that provides reverse proxy, configurable traffic routing, and TLS termination for Kubernetes services. 
+An ingress controller is a piece of software that provides reverse proxy, configurable traffic routing, 
+and TLS termination for Kubernetes services. 
 
 Kubernetes ingress resources are used to configure the ingress rules and routes for individual Kubernetes services. 
 
-Using an ingress controller and ingress rules, a single IP address can be used to route traffic to multiple services in a Kubernetes cluster.
+Using an ingress controller and ingress rules, a single IP address can be used to route traffic to
+ multiple services in a Kubernetes cluster.
 
-This article shows you how to deploy the NGINX ingress controller in an Azure Kubernetes Service (AKS) cluster. The ingress controller is configured with a static public IP address. The cert-manager project is used to automatically generate and configure Let's Encrypt certificates. Finally, two applications are run in the AKS cluster, each of which is accessible over a single IP address.
+This article shows you how to deploy the NGINX ingress controller in an Azure Kubernetes Service (AKS) cluster.
+ The ingress controller is configured with a static public IP address. The cert-manager project is used to automatically generate and configure Let's Encrypt certificates. Finally, two applications are run in the AKS cluster, each of which is accessible over a single IP address.
 
 
 Prerequisite :-
 
-The cluster identity used by the AKS cluster must have at least Network Contributor permissions on the subnet within your virtual network. If you wish to define a custom role instead of using the built-in Network Contributor role, the following permissions are required:
+The cluster identity used by the AKS cluster must have at least Network Contributor permissions on the subnet within your virtual network. 
+If you wish to define a custom role instead of using the built-in Network Contributor role, the following permissions are required:
 {
     "id": "/subscriptions/XXXXXXX-XXXXX-49d2-XXXXX-1a3568XXXXX/providers/Microsoft.Authorization/roleDefinitions/198e09ed-d776-48f9-a01d-01cc0108bdde",
     "properties": {
