@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "virtualNetworks_myVirtualNetwork_name": {
+      "value": "myVirtualNetwork"
+    },
+    "managedClusters_myAKSCluster_name": {
+      "value": "myAKSCluster"
+    },
+    "registries_wpaContainerRegistry_name": {
+      "value": "wpaContainerRegistry"
+    },
+    "publicIPAddresses_5876464a_ff06_478e_9213_029563ed471f_externalid": {
+      "value": "/subscriptions/XXXXX-XXXX-XXX-XXXX-XXXXX80XXXX/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.Network/publicIPAddresses/5876464a-ff06-478e-9213-029563ed471f"
+    },
+    "userAssignedIdentities_myAKSCluster_agentpool_externalid": {
+      "value": "/subscriptions/XXXXX-XXXX-XXX-XXXX-XXXXX80XXXX/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myAKSCluster-agentpool"
+    }
+  }
+}
