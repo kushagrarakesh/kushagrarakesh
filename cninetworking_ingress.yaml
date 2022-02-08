@@ -1,0 +1,392 @@
+Configure Azure CNI networking in Azure Kubernetes Service (AKS) & Create an ingress controller with a static public IP address in Azure Kubernetes Service (AKS)
+=================================================================================================================================================================
+By default, AKS clusters use kubenet, and a virtual network and subnet are created for you. With kubenet, nodes get an IP address from a virtual network subnet. 
+Network address translation (NAT) is then configured on the nodes, and pods receive an IP address "hidden" behind the node IP.
+This approach reduces the number of IP addresses that you need to reserve in your network space for pods to use.
+With Azure Container Networking Interface (CNI), every pod gets an IP address from the subnet and can be accessed directly. 
+These IP addresses must be unique across your network space, and must be planned in advance. 
+Each node has a configuration parameter for the maximum number of pods that it supports. The equivalent number of IP addresses per node are then reserved up front for that node. This approach requires more planning, and often leads to IP address exhaustion or the need to rebuild clusters in a larger subnet as your application demands grow.
+
+This article shows you how to use Azure CNI networking to create and use a virtual network subnet for an AKS cluster. For more information on network options and considerations, see Network concepts for Kubernetes and AKS.
+
+
+
+An ingress controller is a piece of software that provides reverse proxy, configurable traffic routing, and TLS termination for Kubernetes services. 
+
+Kubernetes ingress resources are used to configure the ingress rules and routes for individual Kubernetes services. 
+
+Using an ingress controller and ingress rules, a single IP address can be used to route traffic to multiple services in a Kubernetes cluster.
+
+This article shows you how to deploy the NGINX ingress controller in an Azure Kubernetes Service (AKS) cluster. The ingress controller is configured with a static public IP address. The cert-manager project is used to automatically generate and configure Let's Encrypt certificates. Finally, two applications are run in the AKS cluster, each of which is accessible over a single IP address.
+
+
+Prerequisite :-
+
+The cluster identity used by the AKS cluster must have at least Network Contributor permissions on the subnet within your virtual network. If you wish to define a custom role instead of using the built-in Network Contributor role, the following permissions are required:
+Microsoft.Network/virtualNetworks/subnets/join/action
+Microsoft.Network/virtualNetworks/subnets/read
+
+
+# Update the extension to make sure you have the latest version installed
+az extension update --name aks-preview
+az feature register --namespace "Microsoft.ContainerService" --name "PodSubnetPreview"
+az feature list -o table --query "[?contains(name, 'Microsoft.ContainerService/PodSubnetPreview')].{Name:name,State:properties.state}"
+az provider register --namespace Microsoft.ContainerService
+~~~~~~~~~~~~~~~~~~~~ once in a life time within Azure Subscription~~~~~~~~~~~~~~~~
+resourceGroup="myResourceGroup"
+vnet="myVirtualNetwork"
+location="eastus"
+clusterName="myAKSCluster"
+subscription="XXXXX-dc97-49d2-XXXX-1XXXXXXX"
+vnet="myVirtualNetwork"
+# Create the resource group
+az group create --name $resourceGroup --location $location
+# Create our two subnet network
+az network vnet create -g $resourceGroup --location $location --name $vnet --address-prefixes 10.0.0.0/8 -o none
+
+az network vnet subnet create -g $resourceGroup --vnet-name $vnet --name nodesubnet --address-prefixes 10.240.0.0/16 -o none
+
+az network vnet subnet create -g $resourceGroup --vnet-name $vnet --name podsubnet --address-prefixes 10.241.0.0/16 -o none
+#Create a AKS Cluster
+az aks create -n $clusterName -g $resourceGroup -l $location \
+ --max-pods 250 \
+ --node-count 2 \
+ --network-plugin azure \
+ --generate-ssh-keys    \
+ --vnet-subnet-id /subscriptions/$subscription/resourceGroups/$resourceGroup/providers/Microsoft.Network/virtualNetworks/$vnet/subnets/nodesubnet \
+ --pod-subnet-id /subscriptions/$subscription/resourceGroups/$resourceGroup/providers/Microsoft.Network/virtualNetworks/$vnet/subnets/podsubnet
+
+#Configure ACR integration for existing AKS clusters
+MYACR=wpaContainerRegistry
+resourceGroup="myResourceGroup"
+# Run the following line to create an Azure Container Registry if you do not already have one
+az acr create -n $MYACR -g $resourceGroup --sku standard
+#Attach  ACR integration for existing AKS clusters
+az aks update -n myAKSCluster -g myResourceGroup --attach-acr wpaContainerRegistry
+
+Import the images used by the Helm chart into your ACR
+REGISTRY_NAME= wpaContainerRegistry
+SOURCE_REGISTRY=k8s.gcr.io
+CONTROLLER_IMAGE=ingress-nginx/controller
+CONTROLLER_TAG=v1.0.4
+PATCH_IMAGE=ingress-nginx/kube-webhook-certgen
+PATCH_TAG=v1.1.1
+DEFAULTBACKEND_IMAGE=defaultbackend-amd64
+DEFAULTBACKEND_TAG=1.5
+CERT_MANAGER_REGISTRY=quay.io
+CERT_MANAGER_TAG=v1.5.4
+CERT_MANAGER_IMAGE_CONTROLLER=jetstack/cert-manager-controller
+CERT_MANAGER_IMAGE_WEBHOOK=jetstack/cert-manager-webhook
+CERT_MANAGER_IMAGE_CAINJECTOR=jetstack/cert-manager-cainjector
+
+az acr import --name $REGISTRY_NAME --source $SOURCE_REGISTRY/$CONTROLLER_IMAGE:$CONTROLLER_TAG --image
+ $CONTROLLER_IMAGE:$CONTROLLER_TAG
+az acr import --name $REGISTRY_NAME --source $SOURCE_REGISTRY/$PATCH_IMAGE:$PATCH_TAG --image $PATCH_IMAGE:$PATCH_TAG
+az acr import --name $REGISTRY_NAME --source $SOURCE_REGISTRY/$DEFAULTBACKEND_IMAGE:$DEFAULTBACKEND_TAG --image $DEFAULTBACKEND_IMAGE:$DEFAULTBACKEND_TAG
+az acr import --name $REGISTRY_NAME --source $CERT_MANAGER_REGISTRY/$CERT_MANAGER_IMAGE_CONTROLLER:$CERT_MANAGER_TAG --image $CERT_MANAGER_IMAGE_CONTROLLER:$CERT_MANAGER_TAG
+az acr import --name $REGISTRY_NAME --source $CERT_MANAGER_REGISTRY/$CERT_MANAGER_IMAGE_WEBHOOK:$CERT_MANAGER_TAG --image $CERT_MANAGER_IMAGE_WEBHOOK:$CERT_MANAGER_TAG
+az acr import --name $REGISTRY_NAME --source $CERT_MANAGER_REGISTRY/$CERT_MANAGER_IMAGE_CAINJECTOR:$CERT_MANAGER_TAG --image $CERT_MANAGER_IMAGE_CAINJECTOR:$CERT_MANAGER_TAG
+
+Next, create a public IP address with the static allocation method using the az network public-ip create command. The following example creates a public IP address named myAKSPublicIP in the AKS cluster resource group obtained in the previous step:
+#Create a public IP Address
+az network public-ip create --resource-group MC_myResourceGroup_myAKSCluster_eastus --name myAKSPublicIP --sku Standard --allocation-method static --query publicIp.ipAddress -o tsv
+
+
+#Create an ingress controller with a static public IP address in Azure Kubernetes Service (AKS)
+ACR_URL="wpacontainerregistry.azurecr.io"
+STATIC_IP="104.211.52.25"
+DNS_LABEL="mywayorhighway"
+# Use Helm to deploy an NGINX ingress controller
+helm install nginx-ingress ingress-nginx/ingress-nginx \
+--version 4.0.13 \
+--namespace ingress-basic --create-namespace \
+--set controller.replicaCount=2 \
+--set controller.nodeSelector."kubernetes\.io/os"=linux \
+--set controller.image.registry=$ACR_URL \
+--set controller.image.image=$CONTROLLER_IMAGE \
+--set controller.image.tag=$CONTROLLER_TAG \
+--set controller.image.digest="" \
+--set controller.admissionWebhooks.patch.nodeSelector."kubernetes\.io/os"=linux \
+--set controller.admissionWebhooks.patch.image.registry=$ACR_URL \
+--set controller.admissionWebhooks.patch.image.image=$PATCH_IMAGE \
+--set controller.admissionWebhooks.patch.image.tag=$PATCH_TAG \
+--set controller.admissionWebhooks.patch.image.digest="" \
+--set defaultBackend.nodeSelector."kubernetes\.io/os"=linux \
+--set defaultBackend.image.registry=$ACR_URL \
+--set defaultBackend.image.image=$DEFAULTBACKEND_IMAGE \
+--set defaultBackend.image.tag=$DEFAULTBACKEND_TAG \
+--set defaultBackend.image.digest="" \
+--set controller.service.loadBalancerIP=$STATIC_IP \
+--set controller.service.annotations."service\.beta\.kubernetes\.io/azure-dns-label-name"=$DNS_LABEL
+
+~~~~~~~~~~~~~~~~~aks-helloworld-one.yaml~~~~~~~~~~~~~
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aks-helloworld-one
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aks-helloworld-one
+  template:
+    metadata:
+      labels:
+        app: aks-helloworld-one
+    spec:
+      containers:
+      - name: aks-helloworld-one
+        image: mcr.microsoft.com/azuredocs/aks-helloworld:v1
+        ports:
+        - containerPort: 80
+        env:
+        - name: TITLE
+          value: "Welcome to Azure Kubernetes Service (AKS)"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aks-helloworld-one
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+  selector:
+    app: aks-helloworld-one
+~~~~~~~~~~~~~~~~~~~~~~~ End of the file aks-helloworld-one~~~~~~~~~~~~~~~~
+
+$> kubectl apply -f aks-helloworld-one -n ingress-basic
+~~~~~~~~~~~~~~~~~~~~~~~~~~begin  of the file aks-helloworld-two.yaml~~~~~~~~~~~
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aks-helloworld-two
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aks-helloworld-two
+  template:
+    metadata:
+      labels:
+        app: aks-helloworld-two
+    spec:
+      containers:
+      - name: aks-helloworld-two
+        image: mcr.microsoft.com/azuredocs/aks-helloworld:v1
+        ports:
+        - containerPort: 80
+        env:
+        - name: TITLE
+          value: "AKS Ingress Demo"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aks-helloworld-two
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+  selector:
+    app: aks-helloworld-two
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ End of the file aks-helloworld-two~~~~~~~~~~~~~~~~
+$> kubectl apply -f aks-helloworld-two -n ingress-basic
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Start of the file aks-helloworld-three.yaml~~~~~~~~~~~~~~~~
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aks-helloworld-three
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aks-helloworld-three
+  template:
+    metadata:
+      labels:
+        app: aks-helloworld-three
+    spec:
+      containers:
+      - name: aks-helloworld-three
+        image: mcr.microsoft.com/dotnet/core/samples:aspnetapp
+        ports:
+        - containerPort: 80
+        env:
+        - name: TITLE
+          value: "AKS Ingress Demo for aspnet"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aks-helloworld-three
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+  selector:
+    app: aks-helloworld-three
+~~~~~~~~~~~~~~~~~~~~end of the file aks-helloworld-three.yaml~~~~~~~~~~
+
+$> kubectl apply -f aks-helloworld-three -n ingress-basic
+
+~~~~~~~~~~~~~~~~~Start of the hello-world-ingress.yaml~~~~~~~~~~~~~~~~
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  tls:
+  - hosts:
+    - mywayorhighway.eastus.cloudapp.azure.com
+    secretName: tls-secret
+  rules:
+  - host: mywayorhighway.eastus.cloudapp.azure.com
+    http:
+      paths:
+      - path: /hello-world-one(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aks-helloworld-one
+            port:
+              number: 80
+      - path: /hello-world-two(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aks-helloworld-two
+            port:
+              number: 80
+      - path: /hello-world-three(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aks-helloworld-three
+            port:
+              number: 80              
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aks-helloworld-one
+            port:
+              number: 80
+
+~~~~~~ End of the hello-world-ingress~~~~~~~~~~~~~~
+
+ kubectl apply -f hello-world-ingress -n ingress-basic
+
+
+Verify certificate object
+Next, a certificate resource must be created. The certificate resource defines the desired X.509 certificate. For more information, see cert-manager certificates.
+
+Cert-manager has likely automatically created a certificate object for you using ingress-shim, which is automatically deployed with cert-manager since v0.2.2. For more information, see the ingress-shim documentation.
+
+To verify that the certificate was created successfully, use the 
+
+kubectl describe certificate tls-secret --namespace ingress-basic command.
+
+output:-
+
+Owner References:
+
+    API Version:           networking.k8s.io/v1
+
+    Block Owner Deletion:  true
+
+    Controller:            true
+
+    Kind:                  Ingress
+
+    Name:                  hello-world-ingress
+
+    UID:                   834c59a2-571a-4486-94fd-01b9a52ef132
+
+  Resource Version:        129384
+
+  UID:                     d363a50a-b23f-41f3-ab25-07b96de68598
+
+Spec:
+
+  Dns Names:
+
+    mywayorhighway.eastus.cloudapp.azure.com
+
+  Issuer Ref:
+
+    Group:      cert-manager.io
+
+    Kind:       ClusterIssuer
+
+    Name:       letsencrypt-staging
+
+  Secret Name:  tls-secret
+
+  Usages:
+
+    digital signature
+
+    key encipherment
+
+Status:
+
+  Conditions:
+
+    Last Transition Time:  2022-02-06T16:34:52Z
+
+    Message:               Certificate is up to date and has not expired
+
+    Observed Generation:   1
+
+    Reason:                Ready
+
+    Status:                True
+
+    Type:                  Ready
+
+  Not After:               2022-05-07T15:34:50Z
+
+  Not Before:              2022-02-06T15:34:51Z
+
+  Renewal Time:            2022-04-07T15:34:50Z
+
+  Revision:                1
+
+Events:
+
+  Type    Reason     Age   From          Message
+
+  ----    ------     ----  ----          -------
+
+  Normal  Issuing    69m   cert-manager  Issuing certificate as Secret does not exist
+
+  Normal  Generated  69m   cert-manager  Stored new private key in temporary Secret resource "tls-secret-hqgnt"
+
+  Normal  Requested  69m   cert-manager  Created new CertificateRequest resource "tls-secret-whkqg"
+
+  Normal  Issuing    69m   cert-manager  The certificate has been successfully issued
+
+udr@Azure:~$
+
+
+
+URL accessible :-
+https://mywayorhighway.eastus.cloudapp.azure.com/hello-world-three
+https://mywayorhighway.eastus.cloudapp.azure.com/hello-world-two
+https://mywayorhighway.eastus.cloudapp.azure.com/hello-world-one
+https://mywayorhighway.eastus.cloudapp.azure.com
+
+
+
+
+
