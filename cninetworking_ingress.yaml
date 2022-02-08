@@ -23,8 +23,32 @@ This article shows you how to deploy the NGINX ingress controller in an Azure Ku
 Prerequisite :-
 
 The cluster identity used by the AKS cluster must have at least Network Contributor permissions on the subnet within your virtual network. If you wish to define a custom role instead of using the built-in Network Contributor role, the following permissions are required:
-Microsoft.Network/virtualNetworks/subnets/join/action
-Microsoft.Network/virtualNetworks/subnets/read
+{
+    "id": "/subscriptions/XXXXXXX-XXXXX-49d2-XXXXX-1a3568XXXXX/providers/Microsoft.Authorization/roleDefinitions/198e09ed-d776-48f9-a01d-01cc0108bdde",
+    "properties": {
+        "roleName": "limited-network-contributor-dv",
+        "description": "",
+        "assignableScopes": [
+            "/subscriptions/XXXXXXX-XXXXX-49d2-XXXXX-1a3568XXXXX"
+        ],
+        "permissions": [
+            {
+                "actions": [
+                    "Microsoft.Network/virtualNetworks/subnets/join/action",
+                    "Microsoft.Network/virtualNetworks/subnets/read",
+                    "Microsoft.Network/virtualNetworks/subnets/write",
+                    "Microsoft.Network/publicIPAddresses/join/action",
+                    "Microsoft.Network/publicIPAddresses/read",
+                    "Microsoft.Network/publicIPAddresses/write",
+                    "Microsoft.Authorization/roleAssignments/write"
+                ],
+                "notActions": [],
+                "dataActions": [],
+                "notDataActions": []
+            }
+        ]
+    }
+}
 
 
 # Update the extension to make sure you have the latest version installed
