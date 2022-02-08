@@ -15,11 +15,11 @@
             "type": "String"
         },
         "publicIPAddresses_5876464a_ff06_478e_9213_029563ed471f_externalid": {
-            "defaultValue": "/subscriptions/feff46f9-dc97-49d2-8b37-1a3568022795/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.Network/publicIPAddresses/5876464a-ff06-478e-9213-029563ed471f",
+            "defaultValue": "/subscriptions/XXXXX-XXXX-XXX-XXXX-XXXXX80XXXX/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.Network/publicIPAddresses/5876464a-ff06-478e-9213-029563ed471f",
             "type": "String"
         },
         "userAssignedIdentities_myAKSCluster_agentpool_externalid": {
-            "defaultValue": "/subscriptions/feff46f9-dc97-49d2-8b37-1a3568022795/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myAKSCluster-agentpool",
+            "defaultValue": "/subscriptions/XXXXX-XXXX-XXX-XXXX-XXXXX80XXXX/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myAKSCluster-agentpool",
             "type": "String"
         }
     },
@@ -200,7 +200,7 @@
                 "windowsProfile": {
                     "adminUsername": "azureuser",
                     "enableCSIProxy": true,
-                    "adminPassword": "Citadelabcd@123"
+                    "adminPassword": "xxxxx@123"
                 },
                 "servicePrincipalProfile": {
                     "clientId": "msi"
