@@ -26,10 +26,10 @@
       "value": "wpaContainerRegistry"
     },
     "publicIPAddresses_5876464a_ff06_478e_9213_029563ed471f_externalid": {
-      "value": "/subscriptions/XXXXX-XXXX-XXX-XXXX-XXXXX80XXXX/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.Network/publicIPAddresses/5876464a-ff06-478e-9213-029563ed471f"
+      "value": "/subscriptions/feff46f9-dc97-49d2-8b37-1a3568022795/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.Network/publicIPAddresses/5876464a-ff06-478e-9213-029563ed471f"
     },
     "userAssignedIdentities_myAKSCluster_agentpool_externalid": {
-      "value": "/subscriptions/XXXXX-XXXX-XXX-XXXX-XXXXX80XXXX/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myAKSCluster-agentpool"
+      "value": "/subscriptions/feff46f9-dc97-49d2-8b37-1a3568022795/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myAKSCluster-agentpool"
     }
   }
 }
