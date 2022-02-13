@@ -1,12 +1,26 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
-  "parameters": {
+  "parameters":{
     "virtualNetworks_myVirtualNetwork_name": {
       "value": "myVirtualNetwork"
     },
     "managedClusters_myAKSCluster_name": {
       "value": "myAKSCluster"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "The location of the Managed Cluster resource."
+      }
+    },
+    "ResourceGroupName": {
+      "type": "string",
+      "defaultValue": "wpa-aks-rg",
+      "metadata": {
+        "description": "The RG of the Managed Cluster resource."
+      }
     },
     "registries_wpaContainerRegistry_name": {
       "value": "wpaContainerRegistry"
