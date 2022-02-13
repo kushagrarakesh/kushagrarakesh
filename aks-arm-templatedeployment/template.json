@@ -200,7 +200,7 @@
                 "windowsProfile": {
                     "adminUsername": "azureuser",
                     "enableCSIProxy": true,
-                    "adminPassword": "XCXitaXdel@123"
+                    "adminPassword": "#{password}#"
                 },
                 "servicePrincipalProfile": {
                     "clientId": "msi"
