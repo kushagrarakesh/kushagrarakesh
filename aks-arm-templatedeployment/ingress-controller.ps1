@@ -1,12 +1,13 @@
 # Add the ingress-nginx repository
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-$ResourceGroup = "wpaContainerRegistry"
+$$RegistryName = "wpaContainerRegistry"
 
 # Set variable for ACR location to use for pulling images
 $AcrUrl = (Get-AzContainerRegistry -ResourceGroupName $ResourceGroup -Name $RegistryName).LoginServer
 
-# Use Helm to deploy an NGINX ingress controller
-helm install nginx-ingress ingress-nginx/ingress-nginx `
+$AcrUrl 
+
+helm upgrade nginx-ingress ingress-nginx/ingress-nginx `
     --namespace ingress-basic --create-namespace `
     --set controller.replicaCount=2 `
     --set controller.nodeSelector."kubernetes\.io/os"=linux `
