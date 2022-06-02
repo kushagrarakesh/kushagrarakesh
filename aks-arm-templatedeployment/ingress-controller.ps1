@@ -1,6 +1,6 @@
 # Add the ingress-nginx repository
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-$$RegistryName = "wpaContainerRegistry"
+$RegistryName = "wpaContainerRegistry"
 
 # Set variable for ACR location to use for pulling images
 $AcrUrl = (Get-AzContainerRegistry -ResourceGroupName $ResourceGroup -Name $RegistryName).LoginServer
