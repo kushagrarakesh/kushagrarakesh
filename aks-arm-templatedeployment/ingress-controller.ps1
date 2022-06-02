@@ -15,7 +15,6 @@ helm upgrade nginx-ingress ingress-nginx/ingress-nginx `
     --set controller.nodeSelector."kubernetes\.io/os"=linux `
     --set controller.image.registry=$AcrUrL `
     --set controller.image.image=$ControllerImage `
-    --set controller.image.tag=$ControllerTag `
     --set controller.image.digest="" `
     --set controller.admissionWebhooks.patch.nodeSelector."kubernetes\.io/os"=linux `
     --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz `
