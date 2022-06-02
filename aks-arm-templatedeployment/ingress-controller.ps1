@@ -33,7 +33,7 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 $AcrUrl = (Get-AzContainerRegistry -ResourceGroupName $ResourceGroup -Name $RegistryName).LoginServer
 $DnsLabel = "rak3234"
 
-helm upgrade nginx-ingress ingress-nginx/ingress-nginx `
+helm install nginx-ingress ingress-nginx/ingress-nginx `
     --namespace ingress-basic --create-namespace `
     --set controller.replicaCount=2 `
     --set controller.nodeSelector."kubernetes\.io/os"=linux `
