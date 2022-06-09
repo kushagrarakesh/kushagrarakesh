@@ -96,7 +96,7 @@ az acr create -n $MYACR -g $resourceGroup --sku standard
 az aks update -n myAKSCluster -g myResourceGroup --attach-acr wpaContainerRegistry
 
 Import the images used by the Helm chart into your ACR
-REGISTRY_NAME= wpaContainerRegistry
+REGISTRY_NAME=wpaContainerRegistry
 SOURCE_REGISTRY=k8s.gcr.io
 CONTROLLER_IMAGE=ingress-nginx/controller
 CONTROLLER_TAG=v1.0.4
