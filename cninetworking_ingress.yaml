@@ -117,15 +117,19 @@ az acr import --name $REGISTRY_NAME --source $CERT_MANAGER_REGISTRY/$CERT_MANAGE
 az acr import --name $REGISTRY_NAME --source $CERT_MANAGER_REGISTRY/$CERT_MANAGER_IMAGE_WEBHOOK:$CERT_MANAGER_TAG --image $CERT_MANAGER_IMAGE_WEBHOOK:$CERT_MANAGER_TAG
 az acr import --name $REGISTRY_NAME --source $CERT_MANAGER_REGISTRY/$CERT_MANAGER_IMAGE_CAINJECTOR:$CERT_MANAGER_TAG --image $CERT_MANAGER_IMAGE_CAINJECTOR:$CERT_MANAGER_TAG
 
+az aks show --name $clusterName --resource-group $resourceGroup --query nodeResourceGroup -o tsv
+
+az aks show --name $clusterName --resource-group $resourceGroup --query nodeResourceGroup -o tsv
 Next, create a public IP address with the static allocation method using the az network public-ip create command. 
 The following example creates a public IP address named myAKSPublicIP in the AKS cluster resource group obtained in the previous step:
 #Create a public IP Address
 az network public-ip create --resource-group MC_myResourceGroup_myAKSCluster_eastus --name myAKSPublicIP --sku Standard --allocation-method static --query publicIp.ipAddress -o tsv
 
+az aks get-credentials --resource-group wpa-aks-rg --name myAKSCluster
 
 #Create an ingress controller with a static public IP address in Azure Kubernetes Service (AKS)
 ACR_URL="wpacontainerregistry.azurecr.io"
-STATIC_IP="104.211.52.25"
+STATIC_IP="20.127.99.11"
 DNS_LABEL="mywayorhighway"
 # Use Helm to deploy an NGINX ingress controller
 helm install nginx-ingress ingress-nginx/ingress-nginx \
@@ -150,12 +154,18 @@ helm install nginx-ingress ingress-nginx/ingress-nginx \
 --set controller.service.loadBalancerIP=$STATIC_IP \
 --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-dns-label-name"=$DNS_LABEL
 
+output :-
+dr@Azure:~$ kubectl get pods -n ingress-basic
+NAME                                                      READY   STATUS    RESTARTS   AGE
+nginx-ingress-ingress-nginx-controller-685d756859-7cvkn   1/1     Running   0          53s
+nginx-ingress-ingress-nginx-controller-685d756859-qzhz5   1/1     Running   0          53s
 ~~~~~~~~~~~~~~~~~aks-helloworld-one.yaml~~~~~~~~~~~~~
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aks-helloworld-one
+  namespace: ingress-basic
 spec:
   replicas: 1
   selector:
@@ -179,6 +189,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: aks-helloworld-one
+  namespace: ingress-basic
 spec:
   type: ClusterIP
   ports:
@@ -193,6 +204,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aks-helloworld-two
+  namespace: ingress-basic
 spec:
   replicas: 1
   selector:
@@ -216,6 +228,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: aks-helloworld-two
+  namespace: ingress-basic
 spec:
   type: ClusterIP
   ports:
@@ -231,6 +244,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aks-helloworld-three
+  namespace: ingress-basic
 spec:
   replicas: 1
   selector:
@@ -254,6 +268,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: aks-helloworld-three
+  namespace: ingress-basic
 spec:
   type: ClusterIP
   ports:
@@ -270,6 +285,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: hello-world-ingress
+  namespace: ingress-basic
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-staging
