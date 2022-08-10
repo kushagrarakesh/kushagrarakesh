@@ -158,7 +158,7 @@
                 "type": "SystemAssigned"
             },
             "properties": {
-                "kubernetesVersion": "1.21.7",
+                "kubernetesVersion": "1.21.9",
                 "dnsPrefix": "myAKSClust-myResourceGroup-feff46",
                 "agentPoolProfiles": [
                     {
