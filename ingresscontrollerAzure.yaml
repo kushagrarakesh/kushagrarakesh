@@ -1,0 +1,238 @@
+Create an ingress controller in Azure Kubernetes Service (AKS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo add stable https://charts.helm.sh/stable
+helm repo update
+helm install nginx-ingress-controller ingress-nginx/ingress-nginx -n chap2
+--- 3 to 6 lines you can ignore as this is a stable release, 
+
+REGISTRY_NAME=mywpaaksacr     ---- here mywpaaksacr is your Azure Container registry..
+SOURCE_REGISTRY=registry.k8s.io
+CONTROLLER_IMAGE=ingress-nginx/controller
+CONTROLLER_TAG=v1.4.0
+PATCH_IMAGE=ingress-nginx/kube-webhook-certgen
+PATCH_TAG=v20220916-gd32f8c343
+DEFAULTBACKEND_IMAGE=defaultbackend-amd64
+DEFAULTBACKEND_TAG=1.5
+
+# Importing images from public ACR to your ACR.
+az acr import --name $REGISTRY_NAME --source $SOURCE_REGISTRY/$CONTROLLER_IMAGE:$CONTROLLER_TAG --image $CONTROLLER_IMAGE:$CONTROLLER_TAG
+az acr import --name $REGISTRY_NAME --source $SOURCE_REGISTRY/$PATCH_IMAGE:$PATCH_TAG --image $PATCH_IMAGE:$PATCH_TAG
+az acr import --name $REGISTRY_NAME --source $SOURCE_REGISTRY/$DEFAULTBACKEND_IMAGE:$DEFAULTBACKEND_TAG --image $DEFAULTBACKEND_IMAGE:$DEFAULTBACKEND_TAG
+
+---
+# Add the ingress-nginx repository
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+# Set variable for ACR location to use for pulling images
+ACR_URL=mywpaaksacr.azurecr.io
+# Use Helm to deploy an NGINX ingress controller
+helm install nginx-ingress ingress-nginx/ingress-nginx \
+    --version 4.3.0 \
+    --namespace ingress-basic \
+    --create-namespace \
+    --set controller.replicaCount=2 \
+    --set controller.nodeSelector."kubernetes\.io/os"=linux \
+    --set controller.image.registry=$ACR_URL \
+    --set controller.image.image=$CONTROLLER_IMAGE \
+    --set controller.image.tag=$CONTROLLER_TAG \
+    --set controller.image.digest="" \
+    --set controller.admissionWebhooks.patch.nodeSelector."kubernetes\.io/os"=linux \
+    --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz \
+    --set controller.admissionWebhooks.patch.image.registry=$ACR_URL \
+    --set controller.admissionWebhooks.patch.image.image=$PATCH_IMAGE \
+    --set controller.admissionWebhooks.patch.image.tag=$PATCH_TAG \
+    --set controller.admissionWebhooks.patch.image.digest="" \
+    --set defaultBackend.nodeSelector."kubernetes\.io/os"=linux \
+    --set defaultBackend.image.registry=$ACR_URL \
+    --set defaultBackend.image.image=$DEFAULTBACKEND_IMAGE \
+    --set defaultBackend.image.tag=$DEFAULTBACKEND_TAG \
+    --set defaultBackend.image.digest=""
+	
+	
+you will get error:-
+Events:
+  Type     Reason     Age                  From               Message
+  ----     ------     ----                 ----               -------
+  Normal   Scheduled  10m                  default-scheduler  Successfully assigned ingress-basic/nginx-ingress-ingress-nginx-admission-create-6psn6 to aks-agentpool-36778052-vmss000000
+  Normal   Pulling    9m3s (x4 over 10m)   kubelet            Pulling image "mywpaaksacr.azurecr.io/ingress-nginx/kube-webhook-certgen:v1.1.1"
+  Warning  Failed     9m3s (x4 over 10m)   kubelet            Failed to pull image "mywpaaksacr.azurecr.io/ingress-nginx/kube-webhook-certgen:v1.1.1": rpc error: code = Unknown desc = failed to pull and unpack image "mywpaaksacr.azurecr.io/ingress-nginx/kube-webhook-certgen:v1.1.1": failed to resolve reference "mywpaaksacr.azurecr.io/ingress-nginx/kube-webhook-certgen:v1.1.1": failed to authorize: failed to fetch anonymous token: unexpected status: 401 Unauthorized
+  Warning  Failed     9m3s (x4 over 10m)   kubelet            Error: ErrImagePull
+  Warning  Failed     8m51s (x6 over 10m)  kubelet            Error: ImagePullBackOff
+  Normal   BackOff    19s (x43 over 10m)   kubelet            Back-off pulling image "mywpaaksacr.azurecr.io/ingress-nginx/kube-webhook-certgen:v1.1.1"
+
+In order to resolve this error:-
+1.acr pull  -- 
+  az role assignment create --role "reader" --assignee-object-id "fd224fd3-1fe8-49e8-b5a1-c43ebd83fa45" --description "Role assignment Azure K8s to ACR" --scope "/subscriptions/feff46f9-dc97-49d2-8b37-1a3568022795/resourceGroups/myresourcegroup/providers/Microsoft.ContainerRegistry/registries/mywpaaksacr" 
+2.attach acr to aks -- 
+  az aks update -n myakscluster -g myresourcegroup --attach-acr "/subscriptions/feff46f9-dc97-49d2-8b37-1a3568022795/resourceGroups/myresourcegroup/providers/Microsoft.ContainerRegistry/registries/mywpaaksacr"
+
+	
+
+kubectl create namespace chap2
+
+helm show values ingress-nginx/ingress-nginx
+
+C:\Users\kusha>kubectl get services -n ingress-basic
+W1022 14:19:44.492983   18804 azure.go:92] WARNING: the azure auth plugin is deprecated in v1.22+, unavailable in v1.26+; use https://github.com/Azure/kubelogin instead.
+To learn more, consult https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins
+NAME                                               TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)                      AGE
+nginx-ingress-ingress-nginx-controller             LoadBalancer   10.0.138.30   20.102.0.61   80:32312/TCP,443:32657/TCP   29m
+nginx-ingress-ingress-nginx-controller-admission   ClusterIP      10.0.245.59   <none>        443/TCP                      29m
+
+# Create a file ingress-internal.yaml file, if you want your nginx load balancer to change from public to Internal
+
+controller:
+  service:
+    loadBalancerIP: 10.5.240.222    # Add your free AKS subnet CIDR any free Ip address
+    annotations:
+      service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+
+# upgrade your nginx ingress service from public to  internal load balancer
+helm upgrade -f internal-ingress.yaml nginx-ingress ingress-nginx/ingress-nginx --install -n ingress-basic
+after upgrade your nginx-ingress-ingress-nginx-controller service LoadBalancer will change from public (20.102.0.61)  to  Intenal ( 10.5.240.222)
+
+C:\Users\kusha>kubectl get services -n ingress-basic
+W1022 15:28:03.195338   24860 azure.go:92] WARNING: the azure auth plugin is deprecated in v1.22+, unavailable in v1.26+; use https://github.com/Azure/kubelogin instead.
+To learn more, consult https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins
+NAME                                               TYPE           CLUSTER-IP    EXTERNAL-IP    PORT(S)                      AGE
+nginx-ingress-ingress-nginx-controller             LoadBalancer   10.0.138.30   10.5.240.222   80:32312/TCP,443:32657/TCP   98m
+nginx-ingress-ingress-nginx-controller-admission   ClusterIP      10.0.245.59   <none>         443/TCP                      98m
+
+~~~~~~~~~~~~~~~~~~~~~
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aks-helloworld-one  
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aks-helloworld-one
+  template:
+    metadata:
+      labels:
+        app: aks-helloworld-one
+    spec:
+      containers:
+      - name: aks-helloworld-one
+        image: mcr.microsoft.com/azuredocs/aks-helloworld:v1
+        ports:
+        - containerPort: 80
+        env:
+        - name: TITLE
+          value: "Welcome to Azure Kubernetes Service (AKS)"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aks-helloworld-one  
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+  selector:
+    app: aks-helloworld-one
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aks-helloworld-two  
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aks-helloworld-two
+  template:
+    metadata:
+      labels:
+        app: aks-helloworld-two
+    spec:
+      containers:
+      - name: aks-helloworld-two
+        image: mcr.microsoft.com/azuredocs/aks-helloworld:v1
+        ports:
+        - containerPort: 80
+        env:
+        - name: TITLE
+          value: "AKS Ingress Demo"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aks-helloworld-two  
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+  selector:
+    app: aks-helloworld-two
+---	
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /hello-world-one(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aks-helloworld-one
+            port:
+              number: 80
+      - path: /hello-world-two(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aks-helloworld-two
+            port:
+              number: 80
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aks-helloworld-one
+            port:
+              number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world-ingress-static
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /static/$2
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /static(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: aks-helloworld-one
+            port: 
+              number: 80
+---
+
+kubectl run -it --rm aks-ingress-test --image=mcr.microsoft.com/dotnet/runtime-deps:6.0 --namespace ingress-basic
+
+---
+apt-get update && apt-get install -y curl			  
+
+~~~~~~~~~~~
+
+curl -L http://10.224.0.42
+-----
+$ curl -L -k http://10.224.0.42/hello-world-two
+---
+
