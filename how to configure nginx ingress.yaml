@@ -1,0 +1,7 @@
+kubectl create ns dec27
+helm repo add stable https://charts.helm.sh/stable
+helm repo update
+helm install nginx-ingress stable/nginx-ingress --namespace dec27
+
+whitelist below 3 FQDNS.
+  us.gcr.io,k8s.gcr.io,storage.googleapis.com
