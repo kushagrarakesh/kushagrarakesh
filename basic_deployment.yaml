@@ -152,3 +152,140 @@ You can then access the Pod's services by connecting to localhost:80 on your loc
 Keep in mind that port-forwarding is only intended for use in development or testing environments,
 and is not suitable for production use. For production environments,
 you should use a load balancer or Ingress resource to expose your Services to external traffic.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ What is Service~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In Azure Kubernetes Service (AKS), a Service is a Kubernetes resource that defines a group of Pods and a policy for accessing them.
+Services enable a loose coupling between dependent Pods by providing a stable network endpoint for a set of Pods.
+
+You can access a Service through a stable, virtual IP (VIP) address, or through a DNS name. 
+Services can also load balance traffic across their associated Pods. 
+This makes it easy to access and communicate with your application, regardless of where the Pods are running within the cluster.
+
+You can create a Service in AKS by defining a Service manifest file and using the kubectl command-line tool to create the Service. 
+For example, the following manifest file defines a Service that exposes a Deployment with a label of "app=nginx":
+/* my-nginx-service-nodeport.yaml */
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-nginx-service
+  namespace: dec27
+spec:
+  type: NodePort
+  selector:
+    app: nginx
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    
+    
+To create the Service, you can use the kubectl create command:
+  kubectl apply -f .\my-nginx-service-nodeport.yaml -n dec27
+
+To validate that a NodePort type Service is working in Kubernetes, you can perform the following steps:
+
+Check the status of the Service to make sure it has been created successfully. 
+You can do this by running the kubectl get service command and specifying the name of the Service:
+This will output the details of the Service, including its current status and the port that it is exposing on each node in the cluster.
+
+  PS C:\yaml>  kubectl get service my-nginx-service -n dec27
+NAME               TYPE       CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
+my-nginx-service   NodePort   10.2.0.121   <none>        80:30268/TCP   13m
+
+Check the status of the Pod that the Service is exposing. You can do this by running the kubectl get pod command and specifying the name of the Pod:
+This will output the details of the Pod, including its current status and the containers that it is running.
+PS C:\yaml> kubectl get pods -n dec27
+NAME                                  READY   STATUS    RESTARTS   AGE
+my-nginx-deployment-7f69489df-sllsb   1/1     Running   0          62m
+
+Test the Service by connecting to it from a client.
+To do this, you will need to find the node IP address and the port that the Service is exposing on that node. 
+You can do this by running the following command:
+PS C:\yaml> kubectl describe service my-nginx-service -n dec27
+output:-
+Name:                     my-nginx-service
+Namespace:                dec27
+Labels:                   <none>
+Annotations:              <none>
+Selector:                 app=nginx
+Type:                     NodePort
+IP Family Policy:         SingleStack
+IP Families:              IPv4
+IP:                       10.2.0.121
+IPs:                      10.2.0.121
+Port:                     <unset>  80/TCP
+TargetPort:               80/TCP
+NodePort:                 <unset>  30268/TCP
+Endpoints:                10.56.0.52:80    <--- pod IP : Pod Port
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+
+This will output the details of the Service, including the node IP addresses and the ports that it is exposing on each node. 
+Once you have this information, you can use a client such as a web browser to connect to the Service by visiting the node IP 
+address and port in the following format: http://NODE_IP:NODE_PORT.
+
+Get the pod running on which Node
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+PS C:\yaml> kubectl get pod my-nginx-deployment-7f69489df-sllsb -n dec27 -o wide
+NAME                                  READY   STATUS    RESTARTS   AGE   IP           NODE                                NOMINATED NODE   READINESS GATES        
+my-nginx-deployment-7f69489df-sllsb   1/1     Running   0          71m   10.56.0.52   aks-nodepool1-12906111-vmss000003   <none>           <none>
+
+here pod "my-nginx-deployment-7f69489df-sllsb" is running on Node aks-nodepool1-12906111-vmss000003
+
+Get the node IP Address, the node Ip address is 10.56.0.34 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+PS C:\yaml> kubectl get nodes -o wide
+NAME                                STATUS   ROLES   AGE     VERSION    INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+aks-nodepool1-12906111-vmss000000   Ready    agent   7d22h   v1.23.12   10.56.0.5     <none>        Ubuntu 18.04.6 LTS   5.4.0-1094-azure   containerd://1.6.4+azure-4
+aks-nodepool1-12906111-vmss000003   Ready    agent   25h     v1.23.12   10.56.0.34    <none>        Ubuntu 18.04.6 LTS   5.4.0-1094-azure   containerd://1.6.4+azure-4
+
+PS C:\yaml> 
+Go to the brower and run 
+http://10.56.0.34:30268/  <-- I got the output when i typed this in browser
+
+If the Service is working correctly, you should be able to access the Deployment's application or service through the Service.
+
+For more information about Services and how to use them in Kubernetes, you can refer to the official Kubernetes documentation:
+
+https://kubernetes.io/docs/concepts/services-networking/service/
+
+To check the node port service using the port-forward command, you will need to follow these steps:
+
+Set up port forwarding: First, you will need to set up port forwarding on your router to allow external connections to reach the node service. 
+Consult your router's documentation for instructions on how to do this.
+
+Use the kubectl port-forward command: Once you have set up port forwarding,
+
+you can use the kubectl port-forward command to forward a local port to the node port service. 
+If you want to forward a local port to a port on a service, you will need to use the svc/ prefix in the pod name.
+For example, if you have a service called "my-nginx-service" that exposes port 30268, you can forward local port 80 to it with the following command:
+The basic syntax for this command is:
+kubectl port-forward svc/<service name> <local port>:<node port>
+
+
+For example, if the node port service is called "my-service" and it is using node port 30268, 
+you can forward local port 80 to it with the following command:
+
+PS C:\yaml> kubectl get services -n dec27
+NAME               TYPE       CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
+my-nginx-service   NodePort   10.2.0.121   <none>        80:30268/TCP   64m
+
+This means that you can access the service by connecting to port 80, and the service will forward the traffic to port 32419 on the pod.
+
+PS C:\yaml> kubectl port-forward svc/my-nginx-service 30268:80 -n dec27
+Forwarding from 127.0.0.1:30268 -> 80
+Forwarding from [::1]:30268 -> 80
+Handling connection for 30268
+Handling connection for 30268
+
+
+
+
+
+~~~~~~~~~~~~~~~~~ How to Access this deployment using NodePort service~~~~~~~~~~~~~~~~~~~~~~~~~
+To create a Service in Kubernetes that exposes a Deployment, you can use a YAML manifest file.
+
+Here is an example of a YAML manifest file that creates a Service from a Deployment named my-nginx-deployment:
+
