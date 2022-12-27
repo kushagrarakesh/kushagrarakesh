@@ -22,3 +22,133 @@ spec:
           limits:
             cpu: "500m"
             memory: "1Gi"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+PS C:\yaml> kubectl get deployments -n dec27
+NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
+my-nginx-deployment   1/1     1            1           31m
+PS C:\yaml> kubectl describe deployment my-nginx-deployment -n dec27
+Name:                   my-nginx-deployment
+Namespace:              dec27
+CreationTimestamp:      Tue, 27 Dec 2022 04:19:29 +0000
+Labels:                 <none>
+Annotations:            deployment.kubernetes.io/revision: 2
+Selector:               app=nginx
+Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=nginx
+  Containers:
+   nginx:
+    Image:      mcr.microsoft.com/oss/nginx/nginx:1.15.5-alpine
+    Port:       80/TCP
+    Host Port:  0/TCP
+    Limits:
+      cpu:        500m
+      memory:     1Gi
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   my-nginx-deployment-7f69489df (1/1 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  32m   deployment-controller  Scaled up replica set my-nginx-deployment-887b65764 to 1
+  Normal  ScalingReplicaSet  26m   deployment-controller  Scaled up replica set my-nginx-deployment-7f69489df to 1
+  Normal  ScalingReplicaSet  18m   deployment-controller  Scaled down replica set my-nginx-deployment-887b65764 to 0
+PS C:\yaml>
+PS C:\yaml> kubectl get pods -n dec27
+NAME                                  READY   STATUS    RESTARTS   AGE
+my-nginx-deployment-7f69489df-sllsb   1/1     Running   0          27m
+PS C:\yaml> 
+PS C:\yaml> kubectl describe pod my-nginx-deployment-7f69489df-sllsb -n dec27
+Name:             my-nginx-deployment-7f69489df-sllsb
+Namespace:        dec27
+Priority:         0
+Service Account:  default
+Node:             aks-nodepool1-12906111-vmss000003/10.56.0.34
+Start Time:       Tue, 27 Dec 2022 04:33:00 +0000
+Labels:           app=nginx
+                  pod-template-hash=7f69489df
+Annotations:      <none>
+Status:           Running
+IP:               10.56.0.52
+IPs:
+  IP:           10.56.0.52
+Controlled By:  ReplicaSet/my-nginx-deployment-7f69489df
+Containers:
+  nginx:
+    Container ID:   containerd://ad3569e9659f2fec80e3cf5adc8cac199c2a1d9ec4677614d81c7795537b2357
+    Image:          mcr.microsoft.com/oss/nginx/nginx:1.15.5-alpine
+    Image ID:       mcr.microsoft.com/oss/nginx/nginx@sha256:f84780a5ad654515bcd9ba2f35e20935e1246799f198683dd2c4f74d19ae9e5e  
+    Port:           80/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Tue, 27 Dec 2022 04:33:01 +0000
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     500m
+      memory:  1Gi
+    Requests:
+      cpu:        500m
+      memory:     1Gi
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-z67t5 (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  kube-api-access-z67t5:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   Guaranteed
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/memory-pressure:NoSchedule op=Exists
+                             node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason             Age                 From                Message
+  ----     ------             ----                ----                -------
+  Warning  FailedScheduling   28m                 default-scheduler   0/2 nodes are available: 2 Insufficient cpu.
+  Warning  FailedScheduling   21m (x6 over 27m)   default-scheduler   0/2 nodes are available: 2 Insufficient cpu.
+  Normal   Scheduled          20m                 default-scheduler   Successfully assigned dec27/my-nginx-deployment-7f69489df-sllsb to aks-nodepool1-12906111-vmss000003
+  Normal   NotTriggerScaleUp  23m (x31 over 28m)  cluster-autoscaler  pod didn't trigger scale-up: 1 max node group size reached
+  Normal   Pulled             20m                 kubelet             Container image "mcr.microsoft.com/oss/nginx/nginx:1.15.5-alpine" already present on machine
+  Normal   Created            20m                 kubelet             Created container nginx
+  Normal   Started            20m                 kubelet             Started container nginx
+PS C:\yaml>
+PS C:\yaml> kubectl logs my-nginx-deployment-7f69489df-sllsb -n dec27
+PS C:\yaml>
+In Azure Kubernetes Service (AKS), port-forwarding is a way to access a Pod's services from your local machine.
+It allows you to forward traffic from your local machine to a Pod in the AKS cluster, allowing you to access the Pod's services
+as if they were running on your local machine.
+
+To use port-forwarding in AKS, you can use the kubectl port-forward command, which is a tool that is included with the Kubernetes command-line utility kubectl.
+The kubectl port-forward command works the same way in AKS as it does in any other Kubernetes cluster.
+PS C:\yaml> kubectl port-forward -n dec27 my-nginx-deployment-7f69489df-sllsb  80:80  
+Forwarding from 127.0.0.1:80 -> 80
+Forwarding from [::1]:80 -> 80
+Handling connection for 80
+Handling connection for 80
+
+This will forward traffic from your local machine's port 80 to the Pod's port 80.
+You can then access the Pod's services by connecting to localhost:80 on your local machine.
+
+Keep in mind that port-forwarding is only intended for use in development or testing environments,
+and is not suitable for production use. For production environments,
+you should use a load balancer or Ingress resource to expose your Services to external traffic.
